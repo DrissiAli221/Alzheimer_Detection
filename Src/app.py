@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from torchvision import transforms
 from efficientnet_pytorch import EfficientNet
 from dotenv import load_dotenv
+from login_page import check_authentication, render_user_profile
 
 # Load environment variables
 load_dotenv()
@@ -61,6 +62,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+check_authentication()  # ⬅️ CETTE LIGNE PROTÈGE TOUTE L'APPLICATION
 
 # Enhanced CSS with custom color palette - Force dark mode
 st.markdown(f"""
@@ -283,6 +285,9 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
+    # ⬅️ AJOUTEZ CETTE LIGNE POUR AFFICHER LE PROFIL
+    render_user_profile()
+    
     st.markdown("---")
     page = st.radio("Navigation", ["Home", "Analyze", "Chat", "About"], label_visibility="collapsed")
     
@@ -295,6 +300,7 @@ with st.sidebar:
         Non-demented, Very Mild,<br/>Mild, Moderate
     </div>
     """, unsafe_allow_html=True)
+
 
 # Load model
 MODEL_PATH = os.path.join('Src', 'alzheimer_efficientnet_model.pth')
