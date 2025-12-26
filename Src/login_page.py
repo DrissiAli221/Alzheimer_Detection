@@ -57,36 +57,6 @@ def render_login_page():
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }}
         
-        .tab-header {{
-            display: flex;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #404040;
-        }}
-        
-        .tab-btn {{
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            cursor: pointer;
-            color: #9CA3AF;
-            font-weight: 600;
-            border: none;
-            background: none;
-            transition: all 0.3s;
-        }}
-        
-        .tab-btn.active {{
-            color: {COLORS['highlight']};
-            border-bottom: 3px solid {COLORS['highlight']};
-        }}
-        
-        .form-label {{
-            color: {COLORS['text']};
-            font-weight: 500;
-            margin-bottom: 8px;
-            display: block;
-        }}
-        
         .stTextInput input {{
             background: {COLORS['bg']} !important;
             border: 1px solid #404040 !important;
@@ -108,7 +78,7 @@ def render_login_page():
             padding: 12px !important;
             border-radius: 8px !important;
             font-weight: 600 !important;
-            margin-top: 20px !important;
+            margin-top: 10px !important;
         }}
         
         .stButton > button:hover {{
@@ -125,6 +95,11 @@ def render_login_page():
             margin-top: 20px;
             color: {COLORS['text']};
         }}
+        
+        /* Fix pour les labels de formulaire */
+        .stTextInput label, .stSelectbox label {{
+            color: {COLORS['text']} !important;
+        }}
     </style>
     """, unsafe_allow_html=True)
     
@@ -139,22 +114,20 @@ def render_login_page():
     </div>
     """, unsafe_allow_html=True)
     
-    # Tabs Login/Register
+    # Initialiser l'état du tab
     if 'auth_tab' not in st.session_state:
         st.session_state.auth_tab = 'login'
     
+    # Tabs avec colonnes
     col1, col2 = st.columns(2)
+    
     with col1:
-        if st.button("🔑 Connexion", use_container_width=True, 
-                    type="primary" if st.session_state.auth_tab == 'login' else "secondary"):
+        if st.button("🔑 Connexion", key="tab_login", use_container_width=True):
             st.session_state.auth_tab = 'login'
-            st.rerun()
     
     with col2:
-        if st.button("📝 Inscription", use_container_width=True,
-                    type="primary" if st.session_state.auth_tab == 'register' else "secondary"):
+        if st.button("📝 Inscription", key="tab_register", use_container_width=True):
             st.session_state.auth_tab = 'register'
-            st.rerun()
     
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
     
@@ -165,14 +138,12 @@ def render_login_page():
         st.markdown('<h3 style="color: white; margin-bottom: 20px;">Connexion</h3>', 
                    unsafe_allow_html=True)
         
-        with st.form("login_form"):
-            username = st.text_input("👤 Nom d'utilisateur", key="login_username")
-            password = st.text_input("🔒 Mot de passe", type="password", key="login_password")
-            
-            submit = st.form_submit_button("Se connecter", use_container_width=True)
-            
-            if submit:
-                if username and password:
+        username = st.text_input("👤 Nom d'utilisateur", key="login_username")
+        password = st.text_input("🔒 Mot de passe", type="password", key="login_password")
+        
+        if st.button("Se connecter", key="login_submit", use_container_width=True):
+            if username and password:
+                with st.spinner("Connexion en cours..."):
                     success, result = auth.login_user(username, password)
                     
                     if success:
@@ -181,11 +152,12 @@ def render_login_page():
                         st.session_state.user_data = result
                         st.success(f"✅ Bienvenue, {result['full_name']} !")
                         st.balloons()
+                        # Forcer le rechargement
                         st.rerun()
                     else:
                         st.error(f"❌ {result}")
-                else:
-                    st.warning("⚠️ Veuillez remplir tous les champs")
+            else:
+                st.warning("⚠️ Veuillez remplir tous les champs")
         
         st.markdown("""
         <div class="info-box">
@@ -199,29 +171,27 @@ def render_login_page():
         st.markdown('<h3 style="color: white; margin-bottom: 20px;">Inscription</h3>', 
                    unsafe_allow_html=True)
         
-        with st.form("register_form"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                full_name = st.text_input("👨‍⚕️ Nom complet", key="reg_fullname")
-                username = st.text_input("👤 Nom d'utilisateur", key="reg_username")
-            
-            with col2:
-                email = st.text_input("📧 Email", key="reg_email")
-                password = st.text_input("🔒 Mot de passe", type="password", key="reg_password")
-            
-            role = st.selectbox("🎭 Rôle", ["doctor", "admin"], key="reg_role")
-            
-            st.markdown("""
-            <p style="color: #9CA3AF; font-size: 0.85rem; margin-top: 10px;">
-                ⚠️ Le mot de passe doit contenir au moins 6 caractères
-            </p>
-            """, unsafe_allow_html=True)
-            
-            submit = st.form_submit_button("Créer un compte", use_container_width=True)
-            
-            if submit:
-                if all([full_name, username, email, password]):
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            full_name = st.text_input("👨‍⚕️ Nom complet", key="reg_fullname")
+            username = st.text_input("👤 Nom d'utilisateur", key="reg_username")
+        
+        with col2:
+            email = st.text_input("📧 Email", key="reg_email")
+            password = st.text_input("🔒 Mot de passe", type="password", key="reg_password")
+        
+        role = st.selectbox("🎭 Rôle", ["doctor", "admin"], key="reg_role")
+        
+        st.markdown("""
+        <p style="color: #9CA3AF; font-size: 0.85rem; margin-top: 10px;">
+            ⚠️ Le mot de passe doit contenir au moins 6 caractères
+        </p>
+        """, unsafe_allow_html=True)
+        
+        if st.button("Créer un compte", key="register_submit", use_container_width=True):
+            if all([full_name, username, email, password]):
+                with st.spinner("Création du compte..."):
                     success, message = auth.register_user(
                         username=username,
                         email=email,
@@ -236,8 +206,8 @@ def render_login_page():
                         st.balloons()
                     else:
                         st.error(f"❌ {message}")
-                else:
-                    st.warning("⚠️ Veuillez remplir tous les champs")
+            else:
+                st.warning("⚠️ Veuillez remplir tous les champs")
     
     st.markdown('</div></div>', unsafe_allow_html=True)
 
@@ -262,6 +232,7 @@ def render_user_profile():
         """, unsafe_allow_html=True)
         
         if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
+            # Nettoyer la session
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()

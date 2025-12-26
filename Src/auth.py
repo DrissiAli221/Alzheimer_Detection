@@ -8,8 +8,8 @@ import hashlib
 import os
 from datetime import datetime
 
-# Chemin de la base de données
-DB_PATH = os.path.join('Src', 'users.db')
+# CORRECTION : Chemin absolu de la base de données
+DB_PATH = 'users.db'  # Simplifié : dans le même dossier que le script
 
 class AuthSystem:
     """Gère l'authentification des utilisateurs."""
@@ -20,24 +20,28 @@ class AuthSystem:
     
     def init_database(self):
         """Crée la table users si elle n'existe pas."""
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                role TEXT NOT NULL,
-                full_name TEXT,
-                created_at TEXT NOT NULL,
-                last_login TEXT
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    full_name TEXT,
+                    created_at TEXT NOT NULL,
+                    last_login TEXT
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+            print(f"✅ Base de données initialisée : {os.path.abspath(DB_PATH)}")
+        except Exception as e:
+            print(f"❌ Erreur init database : {e}")
     
     def hash_password(self, password):
         """Hache le mot de passe avec SHA-256."""
@@ -90,9 +94,11 @@ class AuthSystem:
             conn.commit()
             conn.close()
             
+            print(f"✅ Utilisateur créé : {username}")
             return True, "Inscription réussie ! Vous pouvez vous connecter."
             
         except Exception as e:
+            print(f"❌ Erreur register : {e}")
             return False, f"Erreur lors de l'inscription : {str(e)}"
     
     def login_user(self, username, password):
@@ -139,12 +145,14 @@ class AuthSystem:
                     'last_login': last_login
                 }
                 
+                print(f"✅ Connexion réussie : {username}")
                 return True, user_data
             else:
                 conn.close()
                 return False, "Nom d'utilisateur ou mot de passe incorrect"
                 
         except Exception as e:
+            print(f"❌ Erreur login : {e}")
             return False, f"Erreur lors de la connexion : {str(e)}"
     
     def get_user_stats(self):
@@ -169,7 +177,8 @@ class AuthSystem:
                 'doctors': total_doctors,
                 'admins': total_admins
             }
-        except:
+        except Exception as e:
+            print(f"❌ Erreur get_user_stats : {e}")
             return {'total': 0, 'doctors': 0, 'admins': 0}
     
     def change_password(self, username, old_password, new_password):
@@ -202,4 +211,5 @@ class AuthSystem:
             return True, "Mot de passe changé avec succès"
             
         except Exception as e:
+            print(f"❌ Erreur change_password : {e}")
             return False, f"Erreur : {str(e)}"
