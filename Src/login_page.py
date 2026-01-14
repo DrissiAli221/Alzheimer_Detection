@@ -1,245 +1,430 @@
 """
-Page de Login et Register pour l'application Alzheimer Detection
+Login and Registration page for Alzheimer Detection app
+With persistent session using cookies
 """
 
 import streamlit as st
 from auth import AuthSystem
+import extra_streamlit_components as stx
+import json
+from datetime import datetime, timedelta
 
-# Couleurs du thème
+# Design tokens (shared with main app)
 COLORS = {
-    'bg': '#1a1a1a',
-    'surface': '#262626',
-    'accent': '#bf4904',
-    'highlight': '#f7b657',
-    'text': '#FFFFFF',
+    'bg': '#0f0f0f',
+    'surface': '#1a1a1a',
+    'elevated': '#252525',
+    'border': '#333333',
+    'accent': '#ff6b35',
+    'accent_light': '#ffa577',
+    'text': '#ffffff',
+    'text_muted': '#8a8a8a',
 }
 
+# SVG Icons
+ICONS = {
+    'brain': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>''',
+    'user': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>''',
+    'lock': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>''',
+    'mail': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>''',
+}
+
+def icon(name, size=20, color=None):
+    if color is None:
+        color = COLORS['accent']
+    svg = ICONS.get(name, ICONS['user'])
+    svg = svg.replace('currentColor', color)
+    svg = svg.replace('width="24"', f'width="{size}"').replace('height="24"', f'height="{size}"')
+    return svg
+
+# Cookie manager
+@st.cache_resource
+def get_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_cookie_manager()
+
+
+def save_session_cookie(user_data):
+    """Save user session to cookie."""
+    session_data = json.dumps({
+        'user_data': user_data,
+        'logged_in': True,
+        'expires': (datetime.now() + timedelta(days=7)).isoformat()
+    })
+    cookie_manager.set('alzheimer_session', session_data, expires_at=datetime.now() + timedelta(days=7))
+
+
+def clear_session_cookie():
+    """Clear the session cookie."""
+    cookie_manager.delete('alzheimer_session')
+
+
+def load_session_from_cookie():
+    """Load session from cookie if exists and valid."""
+    try:
+        session_cookie = cookie_manager.get('alzheimer_session')
+        if session_cookie:
+            session_data = json.loads(session_cookie)
+            expires = datetime.fromisoformat(session_data.get('expires', '2000-01-01'))
+            if expires > datetime.now():
+                return session_data
+    except Exception:
+        pass
+    return None
+
+
 def render_login_page():
-    """Affiche la page de connexion/inscription."""
+    """Renders the login/registration page."""
     
-    # Style CSS
     st.markdown(f"""
     <style>
         .stApp {{
-            background: linear-gradient(135deg, {COLORS['bg']} 0%, #2d1810 100%);
+            background: {COLORS['bg']};
         }}
         
-        .login-container {{
-            max-width: 450px;
+        [data-testid="stHeader"] {{
+            background: transparent;
+        }}
+        
+        [data-testid="stSidebar"] {{
+            display: none;
+        }}
+        
+        /* Hide cookie manager */
+        iframe[title="extra_streamlit_components.CookieManager.cookie_manager"],
+        iframe[title*="CookieManager"],
+        .element-container:has(iframe[title*="cookie"]),
+        .stMarkdown:empty,
+        div[data-testid="stMarkdownContainer"]:empty {{
+            display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }}
+        
+        .block-container {{
+            padding-top: 40px;
+            padding-bottom: 20px;
+            max-width: 420px;
             margin: 0 auto;
-            padding: 40px 20px;
         }}
         
-        .login-header {{
+        /* Prevent scrolling */
+        .stApp {{
+            overflow: hidden;
+            height: 100vh;
+        }}
+        
+        section[data-testid="stSidebar"] {{
+            display: none;
+        }}
+        
+        /* Auth header */
+        .auth-header {{
             text-align: center;
-            color: {COLORS['text']};
-            margin-bottom: 40px;
+            margin-bottom: 28px;
         }}
         
-        .login-title {{
-            font-size: 2.5rem;
+        .auth-logo {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, {COLORS['accent']} 0%, {COLORS['accent_light']} 100%);
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }}
+        
+        .auth-title {{
+            font-size: 1.5rem;
             font-weight: 700;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, {COLORS['highlight']}, {COLORS['accent']});
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: {COLORS['text']};
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
         }}
         
-        .login-subtitle {{
-            font-size: 1rem;
-            color: #9CA3AF;
+        .auth-subtitle {{
+            color: {COLORS['text_muted']};
+            font-size: 0.9rem;
+            line-height: 1.4;
         }}
         
-        .login-card {{
+        /* Tabs */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 0;
             background: {COLORS['surface']};
             border-radius: 12px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 6px;
+            margin-bottom: 32px;
+            border: 1px solid {COLORS['border']};
+            width: 100%;
         }}
         
-        .stTextInput input {{
-            background: {COLORS['bg']} !important;
-            border: 1px solid #404040 !important;
+        .stTabs [data-baseweb="tab"] {{
+            background: transparent;
+            color: {COLORS['text_muted']};
+            border-radius: 8px;
+            padding: 14px 24px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            flex: 1;
+            justify-content: center;
+        }}
+        
+        .stTabs [data-baseweb="tab"]:hover {{
+            color: {COLORS['text']};
+        }}
+        
+        .stTabs [aria-selected="true"] {{
+            background: {COLORS['accent']} !important;
+            color: white !important;
+        }}
+        
+        .stTabs [data-baseweb="tab-highlight"],
+        .stTabs [data-baseweb="tab-border"] {{
+            display: none;
+        }}
+        
+        /* Form card */
+        .form-card {{
+            background: {COLORS['surface']};
+            border: 1px solid {COLORS['border']};
+            border-radius: 16px;
+            padding: 32px;
+        }}
+        
+        .form-title {{
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: {COLORS['text']};
+            margin-bottom: 24px;
+        }}
+        
+        /* Input fields */
+        .stTextInput > label {{
             color: {COLORS['text']} !important;
-            border-radius: 8px !important;
-            padding: 12px !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
         }}
         
-        .stTextInput input:focus {{
+        .stTextInput > div > div > input {{
+            background: {COLORS['bg']} !important;
+            border: 1px solid {COLORS['border']} !important;
+            border-radius: 10px !important;
+            color: {COLORS['text']} !important;
+            padding: 14px 16px !important;
+            font-size: 1rem !important;
+        }}
+        
+        .stTextInput > div > div > input:focus {{
             border-color: {COLORS['accent']} !important;
-            box-shadow: 0 0 0 1px {COLORS['accent']} !important;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15) !important;
         }}
         
+        .stTextInput > div > div > input::placeholder {{
+            color: {COLORS['text_muted']} !important;
+            opacity: 0.6 !important;
+        }}
+        
+        .stSelectbox > label {{
+            color: {COLORS['text']} !important;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }}
+        
+        .stSelectbox > div > div {{
+            background: {COLORS['bg']} !important;
+            border-color: {COLORS['border']} !important;
+            border-radius: 10px !important;
+        }}
+        
+        .stCheckbox > label {{
+            color: {COLORS['text']} !important;
+        }}
+        
+        /* Button */
         .stButton > button {{
             width: 100%;
-            background: linear-gradient(135deg, {COLORS['accent']}, #d45505) !important;
+            background: linear-gradient(135deg, {COLORS['accent']}, #e55a2b) !important;
             color: white !important;
             border: none !important;
-            padding: 12px !important;
-            border-radius: 8px !important;
+            border-radius: 10px !important;
+            padding: 16px !important;
             font-weight: 600 !important;
-            margin-top: 10px !important;
+            font-size: 1rem !important;
+            margin-top: 8px !important;
+            transition: all 0.2s ease !important;
+            letter-spacing: 0.3px;
         }}
         
         .stButton > button:hover {{
-            background: linear-gradient(135deg, #d45505, {COLORS['accent']}) !important;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(191, 73, 4, 0.4) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 8px 24px rgba(255, 107, 53, 0.35) !important;
         }}
         
+        /* Info box */
         .info-box {{
-            background: rgba(191, 73, 4, 0.1);
-            border-left: 4px solid {COLORS['accent']};
-            padding: 16px;
-            border-radius: 8px;
-            margin-top: 20px;
+            background: {COLORS['elevated']};
+            border: 1px solid {COLORS['border']};
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-top: 24px;
+            color: {COLORS['text_muted']};
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }}
+        
+        .info-box strong {{
             color: {COLORS['text']};
         }}
         
-        /* Fix pour les labels de formulaire */
-        .stTextInput label, .stSelectbox label {{
-            color: {COLORS['text']} !important;
+        /* Form spacing */
+        .form-row {{
+            margin-bottom: 20px;
+        }}
+        
+        .form-row-half {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }}
+        
+        /* Hide streamlit branding */
+        #MainMenu {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+        
+        /* Divider */
+        hr {{
+            border: none;
+            border-top: 1px solid {COLORS['border']};
+            margin: 24px 0;
         }}
     </style>
     """, unsafe_allow_html=True)
     
-    # Container principal
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
-    
     # Header
-    st.markdown("""
-    <div class="login-header">
-        <div class="login-title">🧠 Alzheimer Detection</div>
-        <div class="login-subtitle">Système d'analyse MRI pour la détection précoce</div>
+    st.markdown(f"""
+    <div class="auth-header">
+        <div class="auth-logo">
+            {icon('brain', 36, '#ffffff')}
+        </div>
+        <div class="auth-title">Alzheimer's Detection</div>
+        <div class="auth-subtitle">AI-powered MRI analysis for early detection</div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Initialiser l'état du tab
-    if 'auth_tab' not in st.session_state:
-        st.session_state.auth_tab = 'login'
-    
-    # Tabs avec colonnes
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button("🔑 Connexion", key="tab_login", use_container_width=True):
-            st.session_state.auth_tab = 'login'
-    
-    with col2:
-        if st.button("📝 Inscription", key="tab_register", use_container_width=True):
-            st.session_state.auth_tab = 'register'
-    
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    # Auth tabs
+    tab_login, tab_register = st.tabs(["Sign In", "Create Account"])
     
     auth = AuthSystem()
     
-    # TAB LOGIN
-    if st.session_state.auth_tab == 'login':
-        st.markdown('<h3 style="color: white; margin-bottom: 20px;">Connexion</h3>', 
-                   unsafe_allow_html=True)
+    # LOGIN TAB
+    with tab_login:
+        st.markdown('<h3 style="margin-bottom: 24px; color: white;">Welcome back</h3>', unsafe_allow_html=True)
         
-        username = st.text_input("👤 Nom d'utilisateur", key="login_username")
-        password = st.text_input("🔒 Mot de passe", type="password", key="login_password")
+        username = st.text_input("Username", key="login_username", placeholder="Enter your username")
+        password = st.text_input("Password", type="password", key="login_password", placeholder="Enter your password")
         
-        if st.button("Se connecter", key="login_submit", use_container_width=True):
+        remember_me = st.checkbox("Remember me for 7 days", value=True, key="remember_me")
+        
+        if st.button("Sign In", key="login_submit", use_container_width=True):
             if username and password:
-                with st.spinner("Connexion en cours..."):
+                with st.spinner("Signing in..."):
                     success, result = auth.login_user(username, password)
                     
                     if success:
-                        # Stocker les données utilisateur dans la session
                         st.session_state.logged_in = True
                         st.session_state.user_data = result
-                        st.success(f"✅ Bienvenue, {result['full_name']} !")
+                        
+                        if remember_me:
+                            save_session_cookie(result)
+                        
+                        st.success(f"Welcome back, {result['full_name']}!")
                         st.balloons()
-                        # Forcer le rechargement
                         st.rerun()
                     else:
-                        st.error(f"❌ {result}")
+                        st.error(result)
             else:
-                st.warning("⚠️ Veuillez remplir tous les champs")
+                st.warning("Please fill in all fields")
         
         st.markdown("""
         <div class="info-box">
-            <strong>🔐 Première visite ?</strong><br/>
-            Cliquez sur "Inscription" pour créer un compte docteur.
+            <strong>New to the platform?</strong><br>
+            Switch to "Create Account" to register.
         </div>
         """, unsafe_allow_html=True)
     
-    # TAB REGISTER
-    else:
-        st.markdown('<h3 style="color: white; margin-bottom: 20px;">Inscription</h3>', 
-                   unsafe_allow_html=True)
+    # REGISTER TAB
+    with tab_register:
+        st.markdown('<h3 style="margin-bottom: 24px; color: white;">Create your account</h3>', unsafe_allow_html=True)
+        
+        full_name = st.text_input("Full Name", key="reg_fullname", placeholder="Dr. John Smith")
         
         col1, col2 = st.columns(2)
-        
         with col1:
-            full_name = st.text_input("👨‍⚕️ Nom complet", key="reg_fullname")
-            username = st.text_input("👤 Nom d'utilisateur", key="reg_username")
-        
+            username = st.text_input("Username", key="reg_username", placeholder="johnsmith")
         with col2:
-            email = st.text_input("📧 Email", key="reg_email")
-            password = st.text_input("🔒 Mot de passe", type="password", key="reg_password")
+            email = st.text_input("Email", key="reg_email", placeholder="john@hospital.com")
         
-        role = st.selectbox("🎭 Rôle", ["doctor", "admin"], key="reg_role")
+        password = st.text_input("Password", type="password", key="reg_password", placeholder="Minimum 6 characters")
         
-        st.markdown("""
-        <p style="color: #9CA3AF; font-size: 0.85rem; margin-top: 10px;">
-            ⚠️ Le mot de passe doit contenir au moins 6 caractères
-        </p>
-        """, unsafe_allow_html=True)
+        role = st.selectbox("Account Type", ["Doctor", "Administrator"], key="reg_role")
+        role_value = "doctor" if role == "Doctor" else "admin"
         
-        if st.button("Créer un compte", key="register_submit", use_container_width=True):
+        if st.button("Create Account", key="register_submit", use_container_width=True):
             if all([full_name, username, email, password]):
-                with st.spinner("Création du compte..."):
+                with st.spinner("Creating your account..."):
                     success, message = auth.register_user(
                         username=username,
                         email=email,
                         password=password,
                         full_name=full_name,
-                        role=role
+                        role=role_value
                     )
                     
                     if success:
-                        st.success(f"✅ {message}")
-                        st.info("👉 Cliquez sur 'Connexion' pour vous connecter")
+                        st.success(message)
+                        st.info("Switch to 'Sign In' to access your account")
                         st.balloons()
                     else:
-                        st.error(f"❌ {message}")
+                        st.error(message)
             else:
-                st.warning("⚠️ Veuillez remplir tous les champs")
-    
-    st.markdown('</div></div>', unsafe_allow_html=True)
-
-
-def render_user_profile():
-    """Affiche le profil utilisateur dans la sidebar."""
-    if st.session_state.get('logged_in'):
-        user = st.session_state.user_data
+                st.warning("Please fill in all fields")
         
-        st.sidebar.markdown("---")
-        st.sidebar.markdown(f"""
-        <div style="padding: 15px; background: {COLORS['surface']}; border-radius: 8px;">
-            <div style="font-size: 1.1rem; font-weight: 600; color: {COLORS['highlight']}; margin-bottom: 8px;">
-                👤 {user['full_name']}
-            </div>
-            <div style="font-size: 0.85rem; color: #9CA3AF;">
-                @{user['username']}<br/>
-                🎭 {user['role'].capitalize()}<br/>
-                📧 {user['email']}
-            </div>
+        st.markdown("""
+        <div class="info-box">
+            Password must be at least 6 characters long.
         </div>
         """, unsafe_allow_html=True)
-        
-        if st.sidebar.button("🚪 Déconnexion", use_container_width=True):
-            # Nettoyer la session
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+
+
+def render_user_menu():
+    """Renders user info in top bar - kept for compatibility."""
+    pass
+
+
+def logout():
+    """Logout user and clear session."""
+    clear_session_cookie()
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
 
 
 def check_authentication():
-    """Vérifie si l'utilisateur est connecté."""
-    if not st.session_state.get('logged_in', False):
-        render_login_page()
-        st.stop()
+    """Check if user is authenticated - supports persistent sessions."""
+    if st.session_state.get('logged_in', False):
+        return True
+    
+    saved_session = load_session_from_cookie()
+    if saved_session and saved_session.get('logged_in'):
+        st.session_state.logged_in = True
+        st.session_state.user_data = saved_session.get('user_data', {})
+        return True
+    
+    render_login_page()
+    st.stop()
