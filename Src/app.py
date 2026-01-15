@@ -9,6 +9,8 @@ from torchvision import transforms
 from efficientnet_pytorch import EfficientNet
 from dotenv import load_dotenv
 from login_page import check_authentication, logout
+from datetime import datetime
+import base64
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +22,14 @@ try:
 except ImportError as e:
     CHATBOT_AVAILABLE = False
     print(f"Chatbot not available: {e}")
+
+# Import report generator
+try:
+    from report_generator import MedicalReportGenerator
+    REPORT_AVAILABLE = True
+except ImportError as e:
+    REPORT_AVAILABLE = False
+    print(f"Report generator not available: {e}")
 
 # ============ DESIGN SYSTEM ============
 COLORS = {
@@ -51,6 +61,8 @@ ICONS = {
     'folder': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>''',
     'image': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>''',
     'clipboard': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>''',
+    'download': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>''',
+    'file': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>''',
     'refresh': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>''',
     'settings': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>''',
     'target': '''<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>''',
@@ -391,6 +403,12 @@ if 'stored_image' not in st.session_state:
     st.session_state.stored_image = None
 if 'analysis_complete' not in st.session_state:
     st.session_state.analysis_complete = False
+if 'generated_report' not in st.session_state:
+    st.session_state.generated_report = None
+if 'show_report_preview' not in st.session_state:
+    st.session_state.show_report_preview = False
+if 'report_patient_name' not in st.session_state:
+    st.session_state.report_patient_name = ""
 
 # ============ TOP BAR ============
 user = st.session_state.get('user_data', {})
@@ -662,6 +680,109 @@ with tab_analyze:
                 
                 fig = create_prediction_chart(prob_values, labels)
                 st.pyplot(fig, use_container_width=True)
+            
+            # ============ MEDICAL REPORT SECTION ============
+            st.markdown("---")
+            st.markdown(f'<div class="section-header">{icon("file", 24, COLORS["accent"])} Medical Report</div>', unsafe_allow_html=True)
+            
+            # Patient information form
+            with st.expander("📋 Enter Patient Information (Optional)", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    patient_name = st.text_input("Patient Name", value="", placeholder="John Doe")
+                    patient_id = st.text_input("Patient ID", value="", placeholder="P-2024-001")
+                    patient_age = st.number_input("Age", min_value=0, max_value=120, value=65)
+                with col2:
+                    patient_gender = st.selectbox("Gender", ["Male", "Female", "Other"])
+                    scan_date = st.date_input("Scan Date", value=datetime.now())
+                    patient_notes = st.text_area("Additional Notes", placeholder="Any relevant medical history or observations...")
+            
+            # Report action buttons
+            report_col1, report_col2, report_col3 = st.columns(3)
+            
+            with report_col1:
+                if st.button("📄 Generate Report", key="generate_report", use_container_width=True):
+                    if REPORT_AVAILABLE:
+                        with st.spinner("Generating medical report..."):
+                            try:
+                                # Prepare patient info
+                                patient_info = {
+                                    'name': patient_name if patient_name else "Not Provided",
+                                    'patient_id': patient_id if patient_id else f"AUTO-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                                    'age': patient_age,
+                                    'gender': patient_gender,
+                                    'date': scan_date.strftime("%Y-%m-%d"),
+                                    'notes': patient_notes if patient_notes else ""
+                                }
+                                
+                                # Doctor info from session
+                                doctor_info = {
+                                    'name': st.session_state.get('user_data', {}).get('full_name', 'Dr. Unknown'),
+                                    'role': st.session_state.get('user_data', {}).get('role', 'doctor')
+                                }
+                                
+                                # Generate report
+                                report_gen = MedicalReportGenerator()
+                                pdf_buffer = report_gen.generate_report(
+                                    patient_info=patient_info,
+                                    prediction=st.session_state.last_prediction,
+                                    probabilities=st.session_state.last_probabilities,
+                                    mri_image=st.session_state.stored_image,
+                                    doctor_info=doctor_info
+                                )
+                                
+                                # Store in session
+                                st.session_state.generated_report = pdf_buffer.getvalue()
+                                st.session_state.report_patient_name = patient_info['name']
+                                st.success("✅ Report generated successfully!")
+                                st.rerun()
+                                
+                            except Exception as e:
+                                st.error(f"Error generating report: {str(e)}")
+                    else:
+                        st.error("Report generator not available. Install required packages: pip install reportlab")
+            
+            with report_col2:
+                if st.session_state.get('generated_report'):
+                    st.download_button(
+                        label="⬇️ Download PDF",
+                        data=st.session_state.generated_report,
+                        file_name=f"alzheimer_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_report"
+                    )
+                else:
+                    st.button("⬇️ Download PDF", disabled=True, use_container_width=True, key="download_disabled")
+            
+            with report_col3:
+                if st.session_state.get('generated_report'):
+                    if st.button("👁️ View Report", key="view_report", use_container_width=True):
+                        st.session_state.show_report_preview = True
+                        st.rerun()
+                else:
+                    st.button("👁️ View Report", disabled=True, use_container_width=True, key="view_disabled")
+            
+            # Display report preview if requested
+            if st.session_state.get('show_report_preview') and st.session_state.get('generated_report'):
+                st.markdown("---")
+                st.markdown(f"""
+                <div class="card">
+                    <div class="card-header">{icon('file', 20, COLORS['accent'])} Report Preview</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Display PDF in iframe
+                import base64
+                base64_pdf = base64.b64encode(st.session_state.generated_report).decode('utf-8')
+                pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="800" type="application/pdf"></iframe>'
+                st.markdown(pdf_display, unsafe_allow_html=True)
+                
+                if st.button("❌ Close Preview", key="close_preview"):
+                    st.session_state.show_report_preview = False
+                    st.rerun()
+            
+            st.markdown("---")
             
             # Inline chat section - full width below
             if CHATBOT_AVAILABLE and st.session_state.get('chatbot'):

@@ -1,6 +1,16 @@
 # Alzheimer_Detection 🧠
 Leveraging MRI scans to detect Alzheimer's disease using CNN and vision transformers, aimed at enhancing diagnostic accuracy and supporting early intervention.
 
+## ✨ New Feature: Medical Report Generation (PDF)
+
+The application now includes a professional medical report generator that allows doctors to:
+- 📄 Generate comprehensive PDF reports with analysis results
+- 👁️ View reports directly in the application
+- ⬇️ Download reports for printing or sharing
+- 📋 Include patient information and medical notes
+
+[See detailed documentation →](REPORT_FEATURE.md) | [Quick Guide →](GUIDE_RAPIDE_RAPPORT.md)
+
 ## Introduction
 This repository contains a deep learning framework designed to detect Alzheimer's disease using MRI scan images. The project aims to assist radiologists and medical professionals in early diagnosis through automated image analysis.
 
@@ -35,7 +45,12 @@ Streamlit App: The model was deployed on streamlit and is available for use.
 ## Installation
 To set up your environment to run this code, you will need Python 3.8+ and the following packages:
 
-Install dependencies: pip install -r model/requirements.txt
+Install dependencies: 
+```bash
+pip install -r requirements.txt
+pip install reportlab  # For PDF report generation
+```
+
 Explore the Jupyter notebooks in the `Notebooks` directory to understand the model development process.
 
 ## Usage
